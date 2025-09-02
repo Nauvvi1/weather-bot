@@ -163,23 +163,85 @@ bot.command("weather", async (ctx) => {
   }
 });
 
+
+async function buildForecastText(opts: {
+  lat: number; lon: number; tz?: string | null;
+  units: "metric" | "imperial"; lang: "ru" | "en";
+  cityName: string;
+}) {
+  const { lat, lon, tz, units, lang, cityName } = opts;
+  const fc = await getForecast({ lat, lon, units, lang, apiKey: config.openWeatherKey });
+  const list = (fc?.list || []).slice(0, 4);
+
+  const unitTemp = units === "metric" ? "°C" : "°F";
+  const timeZone = tz || "UTC";
+  const lines: string[] = [];
+
+  for (const i of list) {
+    const em = weatherEmoji(i.weather?.[0]?.id || 800);
+    const time = new Date(i.dt * 1000).toLocaleTimeString(
+      lang === "ru" ? "ru-RU" : "en-US",
+      { hour: "2-digit", minute: "2-digit", timeZone }
+    );
+    lines.push(`${time}  ${em}  ${Math.round(i.main?.temp)}${unitTemp}, ${i.weather?.[0]?.description || ""}`);
+  }
+
+  const title = lang === "ru" ? `${cityName} • Ближайшие 12 часов` : `${cityName} • Next 12 hours`;
+  return `${title}\n` + lines.join("\n");
+}
+
 bot.callbackQuery("fc12", async (ctx) => {
   const user = (ctx as any).user;
   const lang = user.lang as "ru" | "en";
   const units = user.units as "metric" | "imperial";
   if (!user.lat || !user.lon) return ctx.answerCallbackQuery();
-  const fc = await getForecast({ lat: user.lat, lon: user.lon, units, lang, apiKey: config.openWeatherKey });
-  const list = (fc?.list || []).slice(0, 4);
-  const unitTemp = units === "metric" ? "°C" : "°F";
-  let lines: string[] = [];
-  for (const i of list) {
-    const em = weatherEmoji(i.weather?.[0]?.id || 800);
-    const time = new Date(i.dt * 1000).toLocaleTimeString(user.lang === "ru" ? "ru-RU" : "en-US", { hour: "2-digit", minute: "2-digit", timeZone: user.tz || "UTC" });
-    lines.push(`${time}  ${em}  ${Math.round(i.main?.temp)}${unitTemp}, ${i.weather?.[0]?.description || ""}`);
+
+  try {
+    const text = await buildForecastText({
+      lat: user.lat,
+      lon: user.lon,
+      tz: user.tz,
+      units,
+      lang,
+      cityName: user.cityName || "—",
+    });
+    await ctx.editMessageText(text);
+  } catch {
+    await ctx.answerCallbackQuery();
+    await ctx.reply("API error. Try later.");
   }
-  const title = user.lang === "ru" ? `${user.cityName} • Ближайшие 12 часов` : `${user.cityName} • Next 12 hours`;
-  await ctx.editMessageText(`${title}\n` + lines.join("\n"));
-  await ctx.answerCallbackQuery();
+});
+
+bot.command("forecast", async (ctx) => {
+  const user = (ctx as any).user;
+  const lang = user.lang as "ru" | "en";
+  const units = user.units as "metric" | "imperial";
+  const arg = ctx.match?.trim();
+
+  try {
+    if (arg) {
+      const results = await directGeocode(arg, config.openWeatherKey);
+      if (!results?.length) return ctx.reply(t(lang, "not_found"));
+      const best = results[0];
+      const name = [best.name, best.state, best.country].filter(Boolean).join(", ");
+      let tz: string | null = null;
+      try { tz = tzLookup(best.lat, best.lon) as string; } catch { tz = null; }
+
+      const text = await buildForecastText({
+        lat: best.lat, lon: best.lon, tz, units, lang, cityName: name || arg
+      });
+      return ctx.reply(text);
+    }
+
+    if (!user.lat || !user.lon) return ctx.reply(t(lang, "need_city_first"));
+
+    const text = await buildForecastText({
+      lat: user.lat, lon: user.lon, tz: user.tz, units, lang, cityName: user.cityName || "—"
+    });
+    await ctx.reply(text);
+  } catch {
+    await ctx.reply("API error. Try later.");
+  }
 });
 
 bot.command("units", async (ctx) => {
