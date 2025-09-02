@@ -1,0 +1,32 @@
+{
+  "name": "weatherme-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Telegram weather bot on Node.js + TypeScript + grammy, SQLite via Prisma. No Jest.",
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name init",
+    "lint": "eslint . --ext .ts || echo 'eslint not configured (optional)'"
+  },
+  "dependencies": {
+    "@grammyjs/runner": "^2.0.3",
+    "@prisma/client": "^5.16.1",
+    "axios": "^1.7.2",
+    "dotenv": "^16.4.5",
+    "grammy": "^1.27.1",
+    "luxon": "^3.5.0",
+    "node-cron": "^3.0.3",
+    "pino": "^9.4.0",
+    "tz-lookup": "^6.1.25"
+  },
+  "devDependencies": {
+    "prisma": "^5.16.1",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.5.4"
+  }
+}

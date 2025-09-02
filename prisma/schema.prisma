@@ -1,0 +1,28 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  tgId      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lang  String @default("ru")
+  units String @default("metric")
+
+  cityName String?
+  lat      Float?
+  lon      Float?
+  tz       String?
+
+  subscribed        Boolean @default(false)
+  subHour           Int?
+  subMinute         Int?
+  lastDailySentDate String?
+}
